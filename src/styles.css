@@ -231,3 +231,11 @@ input::-webkit-date-and-time-value { text-align: right; }
 @keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft) } 50% { box-shadow: 0 0 0 14px var(--accent-soft) } }
 .rec-dot { animation: blink 1s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .3 } }
+
+/* world colors */
+.task::before { content: ''; position: absolute; inset-inline-start: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: transparent; }
+.task.w-personal::before { background: var(--w-personal); } .task.w-work::before { background: var(--w-work); } .task.w-home::before { background: var(--w-home); }
+.seg button.on.w-personal { background: var(--w-personal); color: #111; } .seg button.on.w-work { background: var(--w-work); color: #111; } .seg button.on.w-home { background: var(--w-home); color: #111; }
+.seg button.on .dot { background: #111 !important; }
+.tint-personal .segbar span.on { background: var(--w-personal); } .tint-work .segbar span.on { background: var(--w-work); } .tint-home .segbar span.on { background: var(--w-home); }
+.task.w-personal, .task.w-work, .task.w-home { padding-inline-start: 12px; }

@@ -82,6 +82,7 @@ export default function Home() {
 
   const quickAdd = async () => {
     const title = quick.trim(); if (!title) return
+    setQuick('')
     const world: World = wf !== 'all' && worlds.includes(wf) ? wf : worlds[0]
     await addTasks([newTask({ title, world, kind: 'day', due_date: t })])
     setQuick('')
@@ -96,7 +97,7 @@ export default function Home() {
   const hasList = late.length + todayTimed.length + todayDay.length + week.length + doneUnique.length > 0
 
   return (
-    <div className="homepage">
+    <div className={'homepage' + (wf !== 'all' ? ' tint-' + wf : '')}>
       <div className="between">
         <div className="col" style={{ gap: 0 }}>
           <span className="small" style={{ color: 'var(--accent)', fontWeight: 600 }}>יום {DAY_NAMES[new Date().getDay()]}</span>
@@ -116,7 +117,7 @@ export default function Home() {
       {worlds.length > 1 && (
         <div className="seg" role="tablist" aria-label="מעבר בין עולמות">
           <button className={wf === 'all' ? 'on' : ''} onClick={() => setUI({ worldFilter: 'all' })}>הכל</button>
-          {worlds.map((w) => <button key={w} className={wf === w ? 'on' : ''} onClick={() => setUI({ worldFilter: w })}><span className={'dot ' + w} style={{ marginInlineEnd: 6 }} />{WORLD_LABEL[w]}</button>)}
+          {worlds.map((w) => <button key={w} className={(wf === w ? 'on ' : '') + 'w-' + w} onClick={() => setUI({ worldFilter: w })}><span className={'dot ' + w} style={{ marginInlineEnd: 6 }} />{WORLD_LABEL[w]}</button>)}
         </div>
       )}
 

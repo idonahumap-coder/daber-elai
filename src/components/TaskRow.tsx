@@ -57,7 +57,7 @@ export default function TaskRow({ t, showWorld }: { t: Task; showWorld?: boolean
     <div className="swipe-wrap">
       {mode === 'swipe' && <div className="swipe-bg"><span className="l">ביצעתי</span><span className="r">דחה</span></div>}
       <div
-        className={'task' + (done ? ' done' : '') + (late ? ' late' : '')}
+        className={'task w-' + t.world + (done ? ' done' : '') + (late ? ' late' : '')}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? 'none' : undefined }}
         onClick={() => { if (wasDrag.current) { wasDrag.current = false; return } setUI({ openTaskId: t.id }) }}
         {...handlers}

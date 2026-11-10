@@ -8,13 +8,17 @@ import { MAX_SEC, startRecording, type Rec } from '../lib/recorder'
 
 const BARS = 23
 
+export const extractCancel = { on: false }
 export async function processAudio(blob: Blob, nav: (to: string, o?: { replace?: boolean }) => void) {
   if (!navigator.onLine) { await set('pendingAudio', blob); toast('אין חיבור. ההקלטה נשמרה ותיגזר כשהחיבור יחזור.'); nav('/'); return }
   try {
+    extractCancel.on = false
     const res = await extract({ audio: blob })
+    if (extractCancel.on) return
     setUI({ extraction: res })
     nav('/review', { replace: true })
   } catch (e) {
+    if (extractCancel.on) return
     await set('pendingAudio', blob)
     toast((e as Error).message)
     nav('/')
@@ -51,6 +55,7 @@ export default function Record() {
     rec.current = null
     setPhase('busy')
     const blob = await r.stop()
+    if (!alive.current) return
     if (!blob) { toast('ההקלטה קצרה מדי'); nav('/'); return }
     await processAudio(blob, nav)
   }
@@ -61,7 +66,7 @@ export default function Record() {
   return (
     <div className="page" style={{ minHeight: '100dvh', paddingBottom: 'calc(env(safe-area-inset-bottom) + 36px)' }}>
       <div className="between">
-        <button className="btn" onClick={() => { rec.current?.cancel(); rec.current = null; nav('/') }} disabled={phase === 'busy'}>ביטול</button>
+        <button className="btn" onClick={() => { extractCancel.on = true; rec.current?.cancel(); rec.current = null; nav('/', { replace: true }) }}>ביטול</button>
         {phase === 'rec' && <span className="pill-tag"><span className="dot rec-dot" style={{ background: 'var(--danger)' }} />מקליט</span>}
       </div>
 
