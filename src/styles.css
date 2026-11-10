@@ -248,3 +248,12 @@ input::-webkit-date-and-time-value { text-align: right; }
 .shop-row { display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-bottom: 1px solid var(--line); background: none; border-inline: none; border-top: none; width: 100%; text-align: right; color: var(--text); font-size: 15px; }
 .shop-row .box { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line-2); flex-shrink: 0; }
 .nav .rec { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
+
+.pop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100% - 36px)); background: var(--sheet); border: 1px solid var(--line-2); border-radius: 24px; padding: 18px; z-index: 41; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); animation: popIn .22s cubic-bezier(.2,.8,.2,1); }
+.pop.out { animation: popOut .18s ease-in forwards; }
+.pop-ov.out { animation: fadeOut .18s ease-in forwards; }
+@keyframes popIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.96) } to { opacity: 1; transform: translate(-50%, -50%) } }
+@keyframes popOut { to { opacity: 0; transform: translate(-50%, -48%) scale(.97) } }
+@keyframes fadeOut { to { opacity: 0 } }
+.sheet.compact { gap: 12px; }
+.sheet.compact .field label { margin-bottom: 4px; }

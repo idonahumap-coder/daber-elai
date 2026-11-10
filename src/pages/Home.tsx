@@ -47,6 +47,8 @@ export default function Home() {
   const todayTimed = open.filter((x) => !lateIds.has(x.id) && x.kind === 'timed' && x.due_date === t).sort((a, b) => (a.due_time! < b.due_time! ? -1 : 1))
   const todayDay = open.filter((x) => !lateIds.has(x.id) && x.kind === 'day' && x.due_date === t).sort((a, b) => b.priority - a.priority)
   const ws = weekStart(t), we = addDays(ws, 6)
+  const tmr = addDays(t, 1)
+  const tomorrow = open.filter((x) => !lateIds.has(x.id) && (x.kind === 'day' || x.kind === 'timed') && x.due_date === tmr).sort((a, b) => (a.due_time || '99').localeCompare(b.due_time || '99'))
   const week = open.filter((x) => !lateIds.has(x.id) && ((x.kind === 'week' && x.due_date! <= we) || (x.kind === 'deadline' && x.due_date! <= addDays(t, 7))))
   const doneUnique = visible.filter((x) => x.status === 'done' && x.done_at && ymd(new Date(x.done_at)) === t)
   const todayTotal = todayTimed.length + todayDay.length + doneUnique.filter((x) => x.due_date === t).length + late.filter((x) => x.due_date === t).length
@@ -198,7 +200,8 @@ export default function Home() {
         <Section label={`באיחור · ${late.length}`} danger items={late} showWorld={wf === 'all'} />
         <Section label="היום · בשעות" items={todayTimed.filter((x) => x.id !== next?.id)} showWorld={wf === 'all'} />
         <Section label="היום · במהלך היום" items={todayDay.filter((x) => x.id !== next?.id)} showWorld={wf === 'all'} />
-        <Section label="השבוע" items={week} showWorld={wf === 'all'} />
+        {late.length + todayTimed.length + todayDay.length <= 4 && <Section label="מחר" items={tomorrow} showWorld={wf === 'all'} />}
+        <Section label="השבוע" items={week.filter((x) => !tomorrow.some((y) => y.id === x.id))} showWorld={wf === 'all'} />
 
         {shopOpen.length > 0 && (
           <div className="col" style={{ gap: 0, marginTop: 4 }}>

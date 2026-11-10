@@ -19,6 +19,7 @@ import AllTasks from './pages/AllTasks'
 import Learned from './pages/Learned'
 import Shopping from './pages/Shopping'
 import Nav from './components/Nav'
+import TaskActions from './components/TaskActions'
 import TaskSheet from './components/TaskSheet'
 import Toast from './components/Toast'
 
@@ -55,6 +56,7 @@ function Shell() {
       </div>
       {showNav && <Nav />}
       <TaskSheet />
+      <TaskActions />
     </div>
   )
 }

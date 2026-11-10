@@ -17,7 +17,7 @@ export default function TaskSheet() {
   const id = raw?.split('#')[0] ?? null
   const focusPostpone = raw?.endsWith('#postpone')
   const task = useStore((s) => (id ? s.tasks.find((t) => t.id === id) : undefined))
-  if (!isNew && !task) return null
+  if (!isNew && (!task || !raw?.endsWith('#edit'))) return null
   return <SheetInner key={id ?? 'new'} task={task} focusPostpone={!!focusPostpone} />
 }
 
@@ -45,8 +45,7 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
   const [recDays, setRecDays] = useState<number[]>([new Date().getDay()])
   const [recDay, setRecDay] = useState(new Date().getDate())
   const [recEvery, setRecEvery] = useState(2)
-  const [showPostpone, setShowPostpone] = useState(false)
-  const [topPostpone, setTopPostpone] = useState(focusPostpone)
+  const [showPostpone, setShowPostpone] = useState(focusPostpone)
   const [freeDate, setFreeDate] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [notifyPartner, setNotifyPartner] = useState(true)
@@ -137,11 +136,12 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
 
   const shareCandidates = users.filter((u) => !names.includes(u.display_name || ''))
   const canEdit = !myPending
+  const editOnly = useMemo<boolean>(() => true, [])
 
   return (
     <>
       <div className="overlay" onClick={close} />
-      <div className="sheet" role="dialog" aria-label={task ? 'משימה' : 'משימה חדשה'}>
+      <div className="sheet compact" role="dialog" aria-label={task ? 'משימה' : 'משימה חדשה'}>
         <div className="grabber" />
 
         {myPending && task && (
@@ -149,28 +149,6 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
             <div className="grow">{myPending.role === 'assignee' ? 'הוטלה עליך משימה' : 'שיתפו איתך משימה'}. לאשר?</div>
             <button className="btn sm primary" onClick={() => { respondTasks([task.id], true); close() }}>אשר</button>
             <button className="btn sm" onClick={() => { respondTasks([task.id], false); close() }}>דחה</button>
-          </div>
-        )}
-
-        {task && canEdit && (
-          <div className="col" style={{ gap: 10 }}>
-            {task.status === 'open' ? (
-              <div className="grid3">
-                <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'done', { notify: isShared && notifyPartner }); close() }}><Icon name="check" size={18} stroke={2} />ביצעתי</button>
-                <button className={'btn' + (topPostpone ? ' on' : '')} onClick={() => setTopPostpone((v) => !v)}>דחה</button>
-                <button className="btn" style={{ color: 'var(--danger)' }} onClick={() => (task.series_id ? setAskSeries(true) : cancel())}>בטל</button>
-              </div>
-            ) : (
-              <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'open'); close() }}><Icon name="undo" size={18} />לא ביצעתי · החזר למשימות</button>
-            )}
-            {topPostpone && task.status === 'open' && (
-              <div className="chips">
-                {task.kind === 'timed' && <button className="chip" onClick={() => doPostpone('h1')}>בעוד שעה</button>}
-                {minutes(nowHM()) < minutes(evening) && <button className="chip" onClick={() => doPostpone('evening')}>הערב</button>}
-                <button className="chip" onClick={() => doPostpone('tomorrow')}>מחר</button>
-                <button className="chip" onClick={() => doPostpone('nextweek')}>שבוע הבא</button>
-              </div>
-            )}
           </div>
         )}
 
@@ -265,7 +243,7 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
           )}
         </div>
 
-        {task && task.status === 'open' && canEdit && (
+        {!editOnly && task && task.status === 'open' && canEdit && (
           <div className="shell">
             <div className="core" style={{ padding: 14, gap: 10 }}>
               <button className="between" style={{ background: 'none', border: 'none', padding: 0, color: 'var(--muted)', fontSize: 13 }} onClick={() => setShowPostpone((v) => !v)}>
@@ -293,17 +271,17 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
         )}
 
         <div className="grid2">
-          {task && task.status === 'open' && canEdit ? (
+          {!editOnly && task && task.status === 'open' && canEdit ? (
             <button className="btn lg primary icon-end" style={{ justifyContent: 'space-between' }} onClick={() => { setTaskStatus(task.id, 'done', { notify: isShared && notifyPartner }); close() }}>
               <span style={{ paddingInlineStart: 12 }}>ביצעתי</span><span className="in"><Icon name="check" size={18} stroke={1.75} /></span>
             </button>
-          ) : task && task.status !== 'open' ? (
+          ) : !editOnly && task && task.status !== 'open' ? (
             <button className="btn lg primary" onClick={() => { setTaskStatus(task.id, 'open'); close() }}><Icon name="undo" size={18} />החזר למשימות</button>
           ) : null}
-          {canEdit && <button className={'btn lg' + (task ? '' : ' primary')} style={!task ? { gridColumn: 'span 2' } : undefined} onClick={save}>{task ? 'שמור שינויים' : 'הוסף משימה'}</button>}
+          {canEdit && <button className="btn lg primary" style={{ gridColumn: 'span 2' }} onClick={save}>{task ? 'שמור שינויים' : 'הוסף משימה'}</button>}
         </div>
 
-        {task && task.status === 'open' && canEdit && (
+        {!editOnly && task && task.status === 'open' && canEdit && (
           askSeries ? (
             <div className="grid2">
               <button className="btn danger" onClick={() => cancel(false)}>רק את זו</button>
