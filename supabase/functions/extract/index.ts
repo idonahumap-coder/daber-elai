@@ -92,6 +92,9 @@ async function callGemini(key: string, parts: unknown[]) {
   throw new Error(lastErr)
 }
 
+// deno-lint-ignore no-explicit-any
+const bg = (p: PromiseLike<unknown>) => { const pr = Promise.resolve(p); try { (globalThis as any).EdgeRuntime?.waitUntil(pr) } catch { /* */ } }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
@@ -102,11 +105,13 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) return json({ error: 'צריך להתחבר מחדש' }, 401)
 
-    const { data: p } = await admin.from('profiles').select('status,ai_enabled,ai_daily_limit,is_admin').eq('id', user.id).single()
+    const [{ data: p }, { data: q }] = await Promise.all([
+      admin.from('profiles').select('status,ai_enabled,ai_daily_limit,is_admin').eq('id', user.id).single(),
+      userClient.rpc('ai_quota')
+    ])
     if (!p || p.status !== 'approved') return json({ error: 'החשבון עוד לא אושר' }, 403)
     if (!p.ai_enabled && !p.is_admin) return json({ error: 'AI לא הופעל לחשבון שלך' }, 403)
     if (!p.is_admin) {
-      const { data: q } = await userClient.rpc('ai_quota')
       const used = q?.[0]?.used ?? 0
       if (used >= p.ai_daily_limit) return json({ error: `הגעת למכסה היומית (${p.ai_daily_limit} גזירות). מחר זה מתאפס.` }, 429)
     }
@@ -138,7 +143,7 @@ Deno.serve(async (req) => {
     let parsed: { transcript?: string; items?: unknown[] } = {}
     try { parsed = JSON.parse(text) } catch { parsed = { transcript: '', items: [] } }
     const u = d?.usageMetadata || {}
-    await admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: true, input_tokens: u.promptTokenCount || 0, output_tokens: u.candidatesTokenCount || 0 })
+    bg(admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: true, input_tokens: u.promptTokenCount || 0, output_tokens: u.candidatesTokenCount || 0 }))
     return json({ transcript: parsed.transcript || '', items: parsed.items || [], model: result.model })
   } catch (e) {
     console.error(e)
