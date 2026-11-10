@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { addTasks, getState, newTask, refresh, respondTasks, setTaskStatus, toast, updateTask, useStore } from '../lib/store'
+import { addTasks, getState, toggleShop, newTask, refresh, respondTasks, setTaskStatus, toast, updateTask, useStore } from '../lib/store'
 import { setUI, useUI } from '../lib/ui'
 import { DAY_NAMES, ymd, addDays, deadlineOf, greeting, hebDate, isOverdue, minutes, nowHM, taskMeta, today, weekStart, WORLD_LABEL } from '../lib/dates'
 import type { Task, World } from '../lib/types'
@@ -90,11 +90,14 @@ export default function Home() {
   }
 
   const shopWorld = wf !== 'all' && profile.shopping_worlds.includes(wf) ? wf : null
+  const shopping = useStore((s) => s.shopping)
+  const shopOpen = shopping.filter((it) => !it.checked && (wf === 'all' ? true : wf === 'home' ? !!it.household_id : wf === 'personal' ? !it.household_id : false))
+  const shopLink = shopWorld || (shopOpen[0]?.household_id ? 'home' : 'personal')
   const initial = (profile.display_name || '?').trim()[0]
 
   if (!ready && !tasks.length) return <div className="page"><div className="skeleton" style={{ height: 40, width: 160 }} /><div className="skeleton" style={{ height: 70 }} /><div className="skeleton" style={{ height: 160 }} /><div className="skeleton" style={{ height: 220 }} /></div>
 
-  const hasList = late.length + todayTimed.length + todayDay.length + week.length + doneUnique.length > 0
+  const hasList = shopOpen.length + late.length + todayTimed.length + todayDay.length + week.length + doneUnique.length > 0
 
   return (
     <div className={'homepage' + (wf !== 'all' ? ' tint-' + wf : '')}>
@@ -150,7 +153,7 @@ export default function Home() {
           </div>
           <div className="row" style={{ gap: 10 }}>
             <button className="grow" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'right', color: 'var(--text)', minWidth: 0 }} onClick={() => setUI({ openTaskId: next.id })}>
-              <div style={{ fontSize: 18, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{next.title}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{next.title}</div>
               <div className="small muted">{taskMeta(next)}</div>
             </button>
             <button className="btn sm" style={{ height: 40 }} onClick={() => setUI({ openTaskId: next.id + '#postpone' })}>דחה</button>
@@ -159,7 +162,6 @@ export default function Home() {
         </div></div>
       )}
 
-      {shopWorld && <Link to={`/shopping/${shopWorld}`} className="btn sm chip" style={{ textDecoration: 'none', color: 'var(--text)', flexShrink: 0 }}><Icon name="cart" size={16} />רשימת קניות</Link>}
 
       <div className="home-list">
         {(pendingTasks.length > 0 || hhInvite) && (
@@ -184,6 +186,18 @@ export default function Home() {
         <Section label="היום · בשעות" items={todayTimed.filter((x) => x.id !== next?.id)} showWorld={wf === 'all'} />
         <Section label="היום · במהלך היום" items={todayDay.filter((x) => x.id !== next?.id)} showWorld={wf === 'all'} />
         <Section label="השבוע" items={week} showWorld={wf === 'all'} />
+
+        {shopOpen.length > 0 && (
+          <div className="col" style={{ gap: 0, marginTop: 4 }}>
+            <div className="between"><div className="section-label"><Icon name="cart" size={14} />רשימת קניות · {shopOpen.length}</div>
+              <Link to={`/shopping/${shopLink}`} className="small" style={{ textDecoration: 'none' }}>לרשימה המלאה</Link></div>
+            {shopOpen.slice(0, 6).map((it) => (
+              <button key={it.id} className="shop-row" onClick={() => toggleShop(it.id)}>
+                <span className="box" /><span className="grow">{it.name}</span>{it.qty && <span className="small muted">× {it.qty}</span>}
+              </button>
+            ))}
+          </div>
+        )}
 
         {suggestions.map((sg) => (
           <div key={sg.key} className="card" style={{ background: 'transparent', borderStyle: 'dashed', margin: '8px 0' }}>

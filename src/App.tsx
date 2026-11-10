@@ -33,6 +33,7 @@ function applyTheme(theme: string | undefined) {
 function Shell() {
   const loc = useLocation()
   const showNav = !['/record', '/review'].includes(loc.pathname)
+  useEffect(() => { document.querySelector('.app')?.scrollTo(0, 0) }, [loc.pathname])
   return (
     <div className="app">
       <div key={loc.pathname} className="route">
@@ -66,7 +67,7 @@ export default function App() {
   const pendingOps = useStore((s) => s.pendingOps)
   const authChecked = useStore((s) => s.ready || s.session !== null)
   const [minSplash, setMinSplash] = useState(true)
-  useEffect(() => { const t = setTimeout(() => setMinSplash(false), 900); return () => clearTimeout(t) }, [])
+  useEffect(() => { const t = setTimeout(() => setMinSplash(false), 450); return () => clearTimeout(t) }, [])
 
   useEffect(() => {
     applyTheme(undefined)

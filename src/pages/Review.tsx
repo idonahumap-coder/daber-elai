@@ -31,7 +31,16 @@ function whenLabel(x: Item) {
   if (!x.date) return null
   if (x.kind === 'week') return 'השבוע'
   if (x.kind === 'deadline') return `דדליין · ${relDay(x.date)}`
-  return relDay(x.date) + (x.time ? ` · ${hm(x.time)}` : '')
+  const m = x.time ? minsUntil(x.date, x.time) : -1
+  const soon = m > 0 && m < 180 ? ` · בעוד ${m < 60 ? m + ' דק׳' : Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ' שע׳'}` : ''
+  return relDay(x.date) + (x.time ? ` · ${hm(x.time)}` : '') + soon
+}
+
+function minsUntil(date: string, time?: string | null) {
+  if (!time) return 9999
+  const [h, mi] = time.split(':').map(Number)
+  const d = new Date(date + 'T00:00:00'); d.setHours(h, mi, 0, 0)
+  return Math.round((d.getTime() - Date.now()) / 60000)
 }
 
 export default function Review() {
@@ -88,7 +97,7 @@ export default function Review() {
         } else {
           const kind = x.kind || (x.time ? 'timed' : 'day')
           const date = x.date || today()
-          tasks.push(newTask({ title: x.title, world: x.zone, kind, due_date: kind === 'week' ? weekFriday(date) : date, due_time: kind === 'timed' ? x.time || null : null, priority: x.priority ?? 1, reminder_min: kind === 'timed' ? profile.default_reminder_min : null, source: 'ai' }))
+          tasks.push(newTask({ title: x.title, world: x.zone, kind, due_date: kind === 'week' ? weekFriday(date) : date, due_time: kind === 'timed' ? x.time || null : null, priority: x.priority ?? 1, reminder_min: kind === 'timed' ? (minsUntil(date, x.time) < profile.default_reminder_min + 2 ? 0 : profile.default_reminder_min) : null, source: 'ai' }))
         }
       }
       if (tasks.length) await addTasks(tasks)
@@ -120,17 +129,7 @@ export default function Review() {
           <div key={z} className="col">
             <div className="section-label">{z === 'idea' ? <Icon name="idea" size={14} /> : isShop ? <Icon name="cart" size={14} /> : <span className={'dot ' + z} />}{ZONE_LABEL[z]} · {list.length}</div>
             <div ref={(el) => { zoneRefs.current[z] = el }} className={'drop-zone' + (drag?.over === z ? ' over' : '')} style={{ minHeight: drag && !list.length ? 56 : undefined }}>
-              {isShop ? (
-                <div className="chips" style={{ padding: list.length ? 14 : 0 }}>
-                  {list.map((x) => (
-                    <span key={x._id} className="chip" style={{ height: 38 }}>
-                      <span className="handle" onPointerDown={(e) => onHandleDown(e, x._id)}><Icon name="more" size={14} /></span>
-                      {x.title}{x.qty ? <span className="muted">× {x.qty}</span> : null}
-                      <button aria-label="הסר" onClick={() => remove(x._id)} style={{ background: 'none', border: 'none', color: 'var(--dim)', padding: 0, display: 'flex' }}><Icon name="x" size={14} /></button>
-                    </span>
-                  ))}
-                </div>
-              ) : list.map((x) => (
+              {list.map((x) => (
                 <div key={x._id} className={'x-item' + (drag?.id === x._id ? ' dragging' : '')}>
                   <span className="handle" onPointerDown={(e) => onHandleDown(e, x._id)} aria-label="גרור">
                     <svg width="14" height="20" viewBox="0 0 14 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5" /><circle cx="10" cy="4" r="1.5" /><circle cx="4" cy="10" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="4" cy="16" r="1.5" /><circle cx="10" cy="16" r="1.5" /></svg>
@@ -139,13 +138,14 @@ export default function Review() {
                     {editing === x._id ? (
                       <input value={x.title} autoFocus onChange={(e) => upd(x._id, { title: e.target.value })} onBlur={() => setEditing(null)} onKeyDown={(e) => e.key === 'Enter' && setEditing(null)} />
                     ) : <button style={{ background: 'none', border: 'none', padding: 0, textAlign: 'right', color: 'var(--text)', fontSize: 15, fontWeight: 500 }} onClick={() => setEditing(x._id)}>{x.title}</button>}
-                    {z !== 'idea' && (
+                    {isShop && x.qty && <span className="small muted">כמות: {x.qty}</span>}
+                    {!isShop && z !== 'idea' && (
                       <div className="chips" style={{ gap: 6 }}>
                         {whenLabel(x) && <span className="pill-tag" style={{ color: 'var(--text)' }}>{whenLabel(x)}</span>}
                         {(x.priority ?? 1) >= 2 && <span className="pill-tag">{PRIORITY_LABEL[x.priority!]}</span>}
                       </div>
                     )}
-                    {z !== 'idea' && !x.date && !x.recurrence && (
+                    {!isShop && z !== 'idea' && !x.date && !x.recurrence && (
                       <div className="col" style={{ gap: 6 }}>
                         <div className="small" style={{ color: 'var(--accent)' }}>{x.question || 'למתי?'}</div>
                         <div className="chips">

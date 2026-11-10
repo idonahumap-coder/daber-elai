@@ -14,8 +14,23 @@ export interface Rec {
   startedAt: number
 }
 
+let live: MediaStream | null = null
+let idle = 0
+async function getStream() {
+  clearTimeout(idle)
+  if (live && live.getAudioTracks().some((t) => t.readyState === 'live')) return live
+  live = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } })
+  return live
+}
+function releaseLater() {
+  clearTimeout(idle)
+  idle = window.setTimeout(releaseNow, 5 * 60 * 1000)
+}
+function releaseNow() { live?.getTracks().forEach((t) => t.stop()); live = null }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') releaseNow() })
+
 export async function startRecording(): Promise<Rec> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } })
+  const stream = await getStream()
   const mime = pickMime()
   const r = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 32000 })
   const chunks: Blob[] = []
@@ -32,7 +47,7 @@ export async function startRecording(): Promise<Rec> {
     const loop = () => { an.getByteFrequencyData(data); levelCb?.(data.reduce((a, b) => a + b, 0) / data.length); raf = requestAnimationFrame(loop) }
     loop()
   } catch { /* no analyser */ }
-  const cleanup = () => { cancelAnimationFrame(raf); stream.getTracks().forEach((t) => t.stop()); ctx?.close().catch(() => {}) }
+  const cleanup = () => { cancelAnimationFrame(raf); releaseLater(); ctx?.close().catch(() => {}) }
   const timer = window.setTimeout(() => { if (r.state !== 'inactive') r.stop() }, MAX_SEC * 1000)
   return {
     startedAt: Date.now(),
