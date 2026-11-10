@@ -45,7 +45,8 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
   const [recDays, setRecDays] = useState<number[]>([new Date().getDay()])
   const [recDay, setRecDay] = useState(new Date().getDate())
   const [recEvery, setRecEvery] = useState(2)
-  const [showPostpone, setShowPostpone] = useState(focusPostpone)
+  const [showPostpone, setShowPostpone] = useState(false)
+  const [topPostpone, setTopPostpone] = useState(focusPostpone)
   const [freeDate, setFreeDate] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [notifyPartner, setNotifyPartner] = useState(true)
@@ -148,6 +149,28 @@ function SheetInner({ task, focusPostpone }: { task?: Task; focusPostpone: boole
             <div className="grow">{myPending.role === 'assignee' ? 'הוטלה עליך משימה' : 'שיתפו איתך משימה'}. לאשר?</div>
             <button className="btn sm primary" onClick={() => { respondTasks([task.id], true); close() }}>אשר</button>
             <button className="btn sm" onClick={() => { respondTasks([task.id], false); close() }}>דחה</button>
+          </div>
+        )}
+
+        {task && canEdit && (
+          <div className="col" style={{ gap: 10 }}>
+            {task.status === 'open' ? (
+              <div className="grid3">
+                <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'done', { notify: isShared && notifyPartner }); close() }}><Icon name="check" size={18} stroke={2} />ביצעתי</button>
+                <button className={'btn' + (topPostpone ? ' on' : '')} onClick={() => setTopPostpone((v) => !v)}>דחה</button>
+                <button className="btn" style={{ color: 'var(--danger)' }} onClick={() => (task.series_id ? setAskSeries(true) : cancel())}>בטל</button>
+              </div>
+            ) : (
+              <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'open'); close() }}><Icon name="undo" size={18} />לא ביצעתי · החזר למשימות</button>
+            )}
+            {topPostpone && task.status === 'open' && (
+              <div className="chips">
+                {task.kind === 'timed' && <button className="chip" onClick={() => doPostpone('h1')}>בעוד שעה</button>}
+                {minutes(nowHM()) < minutes(evening) && <button className="chip" onClick={() => doPostpone('evening')}>הערב</button>}
+                <button className="chip" onClick={() => doPostpone('tomorrow')}>מחר</button>
+                <button className="chip" onClick={() => doPostpone('nextweek')}>שבוע הבא</button>
+              </div>
+            )}
           </div>
         )}
 
