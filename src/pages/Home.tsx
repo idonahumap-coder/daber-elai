@@ -6,6 +6,7 @@ import { DAY_NAMES, ymd, addDays, deadlineOf, greeting, hebDate, isOverdue, minu
 import type { Task, World } from '../lib/types'
 import TaskRow from '../components/TaskRow'
 import ExtractSheet from '../components/ExtractSheet'
+import { primeMic } from '../lib/recorder'
 import { Icon } from '../components/Icon'
 import Menu from '../components/Menu'
 import { enablePush, isIOS, isStandalone, pushPermission } from '../lib/push'
@@ -24,6 +25,7 @@ export default function Home() {
   const wf = useUI((u) => u.worldFilter)
   const nav = useNavigate()
   const [quick, setQuick] = useState('')
+  const [askPerms, setAskPerms] = useState(() => { try { return !localStorage.getItem('perms-asked') } catch { return false } })
   const [extractOpen, setExtractOpen] = useState(false)
   const [menu, setMenu] = useState(false)
   const [perm, setPerm] = useState(pushPermission())
@@ -162,6 +164,17 @@ export default function Home() {
         </div></div>
       )}
 
+
+      {askPerms && (
+        <div className="card col" style={{ gap: 10, borderColor: 'var(--accent)' }}>
+          <div style={{ fontWeight: 600 }}>שתי הרשאות וזהו</div>
+          <div className="small muted" style={{ lineHeight: 1.6 }}>התראות כדי שאזכיר לך בזמן, ומיקרופון כדי שאוכל לשמוע אותך.</div>
+          <div className="row">
+            <button className="btn primary grow" onClick={async () => { await enablePush().catch(() => {}); setPerm(pushPermission()); await primeMic(); try { localStorage.setItem('perms-asked', '1') } catch { /* */ } setAskPerms(false) }}>אשר הרשאות</button>
+            <button className="btn ghost" onClick={() => { try { localStorage.setItem('perms-asked', '1') } catch { /* */ } setAskPerms(false) }}>אחר כך</button>
+          </div>
+        </div>
+      )}
 
       <div className="home-list">
         {(pendingTasks.length > 0 || hhInvite) && (

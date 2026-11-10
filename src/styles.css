@@ -247,3 +247,4 @@ input::-webkit-date-and-time-value { text-align: right; }
 .sheet.snap { transition: transform .28s cubic-bezier(.32,.72,0,1); }
 .shop-row { display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-bottom: 1px solid var(--line); background: none; border-inline: none; border-top: none; width: 100%; text-align: right; color: var(--text); font-size: 15px; }
 .shop-row .box { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line-2); flex-shrink: 0; }
+.nav .rec { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }

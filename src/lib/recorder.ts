@@ -14,20 +14,18 @@ export interface Rec {
   startedAt: number
 }
 
-let live: MediaStream | null = null
-let idle = 0
-async function getStream() {
-  clearTimeout(idle)
-  if (live && live.getAudioTracks().some((t) => t.readyState === 'live')) return live
-  live = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } })
-  return live
+let actx: AudioContext | null = null
+function audioCtx() {
+  try { if (!actx) actx = new AudioContext(); if (actx.state === 'suspended') actx.resume().catch(() => {}) } catch { actx = null }
+  return actx
 }
-function releaseLater() {
-  clearTimeout(idle)
-  idle = window.setTimeout(releaseNow, 5 * 60 * 1000)
+function getStream() {
+  return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } })
 }
-function releaseNow() { live?.getTracks().forEach((t) => t.stop()); live = null }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') releaseNow() })
+/** Ask for microphone permission up front (closes the mic right away) */
+export async function primeMic() {
+  try { const s = await getStream(); s.getTracks().forEach((t) => t.stop()); return true } catch { return false }
+}
 
 export async function startRecording(): Promise<Rec> {
   const stream = await getStream()
@@ -38,16 +36,16 @@ export async function startRecording(): Promise<Rec> {
   r.start(500)
   let levelCb: ((v: number) => void) | null = null
   let raf = 0
-  let ctx: AudioContext | null = null
+  let src: MediaStreamAudioSourceNode | null = null
   try {
-    ctx = new AudioContext()
+    const ctx = audioCtx()!
     const an = ctx.createAnalyser(); an.fftSize = 64
-    ctx.createMediaStreamSource(stream).connect(an)
+    src = ctx.createMediaStreamSource(stream); src.connect(an)
     const data = new Uint8Array(an.frequencyBinCount)
     const loop = () => { an.getByteFrequencyData(data); levelCb?.(data.reduce((a, b) => a + b, 0) / data.length); raf = requestAnimationFrame(loop) }
     loop()
   } catch { /* no analyser */ }
-  const cleanup = () => { cancelAnimationFrame(raf); releaseLater(); ctx?.close().catch(() => {}) }
+  const cleanup = () => { cancelAnimationFrame(raf); try { src?.disconnect() } catch { /* */ } stream.getTracks().forEach((t) => t.stop()) }
   const timer = window.setTimeout(() => { if (r.state !== 'inactive') r.stop() }, MAX_SEC * 1000)
   return {
     startedAt: Date.now(),

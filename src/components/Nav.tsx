@@ -10,7 +10,6 @@ const BARS = 23
 export default function Nav() {
   const nav = useNavigate()
   const ai = useStore((s) => s.profile?.ai_enabled)
-  const mode = useStore((s) => s.profile?.record_mode ?? 'toggle')
   const rec = useRef<Rec | null>(null)
   const pressed = useRef(false)
   const [holding, setHolding] = useState<'off' | 'rec' | 'busy'>('off')
@@ -20,15 +19,21 @@ export default function Nav() {
 
   const guard = () => { if (!ai) { toast('הקלטה עם AI עוד לא הופעלה לחשבון שלך'); return false } return true }
 
-  const holdStart = async (e: React.PointerEvent) => {
-    if (mode !== 'hold' || !guard()) return
-    e.preventDefault()
+  const longT = useRef(0)
+  const longFired = useRef(false)
+  const holdStart = (e: React.PointerEvent) => {
+    if (!ai) return
     ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-    pressed.current = true
+    pressed.current = true; longFired.current = false
+    clearTimeout(longT.current)
+    longT.current = window.setTimeout(() => { if (pressed.current) { longFired.current = true; beginHold() } }, 280)
+  }
+  const beginHold = async () => {
+    navigator.vibrate?.(15)
     setHolding('rec'); setSec(0); setLevels(Array(BARS).fill(4))
     try {
       const r = await startRecording()
-      if (!pressed.current) { r.cancel(); setHolding('off'); toast('החזק את הכפתור כל זמן שאתה מדבר'); return }
+      if (!pressed.current) { r.cancel(); setHolding('off'); return }
       rec.current = r
       r.onLevel((v) => setLevels((l) => [...l.slice(1), Math.max(4, Math.min(70, v * 0.9))]))
       timer.current = window.setInterval(() => setSec(Math.floor((Date.now() - r.startedAt) / 1000)), 250)
@@ -36,8 +41,9 @@ export default function Nav() {
   }
 
   const holdEnd = async () => {
-    if (mode !== 'hold') return
+    clearTimeout(longT.current)
     pressed.current = false
+    if (!longFired.current) return
     clearInterval(timer.current)
     const r = rec.current; rec.current = null
     if (!r) return
@@ -71,7 +77,7 @@ export default function Nav() {
         <NavLink to="/calendar" aria-label="לוח שנה" className={({ isActive }) => (isActive ? 'on' : '')}><Icon name="cal" /></NavLink>
         <button
           className={'rec' + (holding === 'rec' ? ' recording' : '')} aria-label="דבר אליי"
-          onClick={() => { if (mode === 'toggle' && guard()) nav('/record') }}
+          onClick={() => { if (longFired.current) { longFired.current = false; return } if (guard()) nav('/record') }}
           onPointerDown={holdStart}
           onPointerUp={holdEnd}
           onPointerCancel={holdEnd}

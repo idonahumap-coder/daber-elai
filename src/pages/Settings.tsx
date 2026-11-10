@@ -70,9 +70,6 @@ export default function Settings() {
         <div className="field"><label>סימון משימות</label><div className="chips">
           <button className={'chip' + (p.action_mode === 'swipe' ? ' on' : '')} onClick={() => saveProfile({ action_mode: 'swipe' })}>החלקה</button>
           <button className={'chip' + (p.action_mode === 'buttons' ? ' on' : '')} onClick={() => saveProfile({ action_mode: 'buttons' })}>כפתורים</button></div></div>
-        <div className="field"><label>הקלטה</label><div className="chips">
-          <button className={'chip' + (p.record_mode === 'toggle' ? ' on' : '')} onClick={() => saveProfile({ record_mode: 'toggle' })}>לחיצה להתחלה וסיום</button>
-          <button className={'chip' + (p.record_mode === 'hold' ? ' on' : '')} onClick={() => saveProfile({ record_mode: 'hold' })}>לחוץ והחזק</button></div></div>
         <div className="field"><label>מראה</label><div className="chips">
           {([['auto', 'לפי הטלפון'], ['dark', 'כהה'], ['light', 'בהיר']] as const).map(([k, l]) => <button key={k} className={'chip' + (p.theme === k ? ' on' : '')} onClick={() => saveProfile({ theme: k })}>{l}</button>)}</div></div>
         <div className="switch" style={{ paddingBottom: 0 }}><span className="grow">למידה ותובנות אישיות</span><Toggle label="למידה" on={p.learning_enabled} onChange={(v) => saveProfile({ learning_enabled: v })} /></div>
