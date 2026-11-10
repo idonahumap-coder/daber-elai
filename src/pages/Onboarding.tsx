@@ -5,6 +5,7 @@ import { enablePush, isIOS, isStandalone, pushSupported } from '../lib/push'
 import type { World } from '../lib/types'
 import { WORLD_LABEL } from '../lib/dates'
 import { Icon } from '../components/Icon'
+import { Logo } from '../components/Logo'
 
 const STEPS = 11
 
@@ -57,7 +58,7 @@ export default function Onboarding() {
 
   const screens = [
     <>
-      <div className="logo"><Icon name="mic" size={32} stroke={1.75} /></div>
+      <Logo size={64} />
       <h1 className="hero"><span className="light">ברוך הבא.</span>בוא נכיר בדקה.</h1>
       <p className="muted" style={{ lineHeight: 1.6 }}>כמה שאלות קצרות, כדי שאדע מתי לפנות אליך ואיך נוח לך לעבוד. הכל ניתן לשינוי אחר כך.</p>
     </>,

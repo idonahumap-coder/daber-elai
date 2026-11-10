@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Icon } from '../components/Icon'
+import { Logo } from '../components/Logo'
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
@@ -33,7 +33,7 @@ export default function Login() {
   return (
     <div className="login">
       <div className="col" style={{ gap: 20 }}>
-        <div className="logo"><Icon name="mic" size={32} stroke={1.75} /></div>
+        <Logo size={64} />
         <h1 className="hero"><span className="light">דבר אליי.</span>אתה מדבר, אני זוכר.</h1>
         <p className="muted" style={{ margin: 0, lineHeight: 1.6 }}>משימות, רעיונות וקניות. בקול, בכתב או בתמונה, ושום דבר לא נשכח.</p>
       </div>

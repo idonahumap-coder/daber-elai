@@ -202,3 +202,7 @@ h2.title { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.4px;
 .homepage > * { flex-shrink: 0; }
 .homepage .home-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px 8px; display: flex; flex-direction: column; gap: 12px; }
 @media (max-height: 700px) { .homepage { gap: 8px } .homepage .seg button { height: 32px } }
+.splash { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding-bottom: calc(env(safe-area-inset-bottom) + 64px); background: var(--bg); }
+.splash-bar { width: 64px; height: 4px; border-radius: 2px; background: var(--seg-off); overflow: hidden; }
+.splash-bar span { display: block; width: 40%; height: 100%; border-radius: 2px; background: var(--accent); animation: load 1.2s cubic-bezier(.32,.72,0,1) infinite; }
+@keyframes load { from { transform: translateX(150%) } to { transform: translateX(-250%) } }

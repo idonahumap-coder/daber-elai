@@ -21,6 +21,7 @@ import Shopping from './pages/Shopping'
 import Nav from './components/Nav'
 import TaskSheet from './components/TaskSheet'
 import Toast from './components/Toast'
+import { Splash } from './components/Logo'
 
 function applyTheme(theme: string | undefined) {
   const t = theme === 'light' || theme === 'dark' ? theme : window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
@@ -94,9 +95,9 @@ export default function App() {
   useEffect(() => { applyTheme(profile?.theme) }, [profile?.theme])
 
   let body
-  if (!authChecked) body = <div className="login"><div /><div className="row" style={{ justifyContent: 'center' }}><div className="spinner" /></div><div /></div>
+  if (!authChecked) body = <Splash />
   else if (!session) body = <Login />
-  else if (!profile) body = <div className="login"><div /><div className="row" style={{ justifyContent: 'center' }}><div className="spinner" /></div><div /></div>
+  else if (!profile) body = <Splash />
   else if (profile.status !== 'approved') body = <Pending />
   else if (!profile.onboarded) body = <Onboarding />
   else body = <HashRouter><Shell /></HashRouter>
