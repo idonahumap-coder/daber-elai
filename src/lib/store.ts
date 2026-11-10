@@ -1,3 +1,4 @@
+import { ding } from './sound'
 import { useSyncExternalStore } from 'react'
 import { get, set } from 'idb-keyval'
 import type { Session } from '@supabase/supabase-js'
@@ -199,6 +200,7 @@ export async function updateTask(id: string, patch: Partial<Task>) {
 }
 
 export async function setTaskStatus(id: string, status: Task['status'], opts: { notify?: boolean; silent?: boolean } = {}) {
+  if (status === 'done') ding()
   const prev = state.tasks.find((t) => t.id === id)
   if (!prev) return
   const extra: Partial<Task> = status === 'done' ? { done_at: nowIso(), done_by: uid() } : status === 'cancelled' ? { cancelled_at: nowIso() } : { done_at: null, cancelled_at: null }
