@@ -103,14 +103,14 @@ Deno.serve(async (req) => {
       await admin.from('tasks').update({ reminded_at: new Date().toISOString() }).eq('id', t.id)
       for (const uid of recips) {
         const p = byId.get(uid); if (!p || !withSubs.has(uid) || quiet(p) || !pref(p, 'reminder')) continue
-        await sendTo(admin, uid, { title: remMin && now < due - 60000 ? `בעוד ${Math.max(1, Math.round((due - now) / 60000))} דק׳ · ${t.due_time.slice(0, 5)}` : `עכשיו · ${t.due_time.slice(0, 5)}`, body: t.title, url: './#/', tag: 'rem-' + t.id })
+        await sendTo(admin, uid, { title: remMin && now < due - 60000 ? `⏰ תזכורת · ${t.due_time.slice(0, 5)} · בעוד ${Math.max(1, Math.round((due - now) / 60000))} דק׳` : `⏰ הגיע הזמן · ${t.due_time.slice(0, 5)}`, body: `מזכיר: ${t.title}`, url: './#/', tag: 'rem-' + t.id })
         log.push('rem ' + t.id)
       }
     } else if (!t.overdue_notified_at && now >= due + 10 * 60000 && now < due + 3 * 3600000) {
       await admin.from('tasks').update({ overdue_notified_at: new Date().toISOString() }).eq('id', t.id)
       for (const uid of recips) {
         const p = byId.get(uid); if (!p || !withSubs.has(uid) || quiet(p) || !pref(p, 'overdue')) continue
-        await sendTo(admin, uid, { title: 'עדיין לא סומן כבוצע', body: `${t.title} (${t.due_time.slice(0, 5)})`, url: './#/', tag: 'late-' + t.id })
+        await sendTo(admin, uid, { title: `עדיין לא סומן כבוצע · ${t.due_time.slice(0, 5)}`, body: `מזכיר: ${t.title}`, url: './#/', tag: 'late-' + t.id })
         log.push('late ' + t.id)
       }
     }
