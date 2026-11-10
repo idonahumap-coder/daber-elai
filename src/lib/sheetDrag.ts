@@ -31,10 +31,41 @@ document.addEventListener('touchend', () => {
   if (dy > 110 || fast) {
     el.style.transform = 'translateX(-50%) translateY(110%)'
     if (ov) { ov.style.transition = 'opacity .25s'; ov.style.opacity = '0' }
-    setTimeout(() => { ov?.click(); el.style.transform = ''; el.classList.remove('snap'); if (ov) { ov.style.opacity = ''; ov.style.transition = '' } }, 240)
+    setTimeout(() => { closing = true; ov?.click(); closing = false; restore(el, ov) }, 240)
   } else {
     el.style.transform = ''
     if (ov) ov.style.opacity = ''
     setTimeout(() => el.classList.remove('snap'), 300)
   }
 })
+
+/* Tap on the dim area: slide the sheet down before it closes */
+let closing = false
+document.addEventListener('click', (e) => {
+  const ov = e.target as HTMLElement
+  if (closing || !ov.classList?.contains('overlay')) return
+  const el = ov.nextElementSibling as HTMLElement | null
+  if (!el?.classList.contains('sheet')) return
+  e.stopPropagation(); e.preventDefault()
+  el.classList.add('closing'); ov.classList.add('closing')
+  setTimeout(() => { closing = true; ov.click(); closing = false; restore(el, ov) }, 250)
+}, true)
+
+/* iOS sometimes ends the web-app viewport above the real screen bottom: measure and compensate */
+function fitViewport() {
+  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone
+  const portrait = innerHeight > innerWidth
+  const gap = standalone && portrait ? screen.height - innerHeight : 0
+  document.documentElement.style.setProperty('--vp-gap', (gap > 0 && gap < 160 ? gap : 0) + 'px')
+}
+fitViewport()
+addEventListener('resize', fitViewport)
+
+/* If the sheet refused to close (e.g. busy), bring it back */
+function restore(el: HTMLElement, ov: HTMLElement | null) {
+  setTimeout(() => {
+    if (!el.isConnected) return
+    el.classList.remove('closing', 'snap'); el.style.transform = ''
+    if (ov) { ov.classList.remove('closing'); ov.style.opacity = ''; ov.style.transition = '' }
+  }, 60)
+}
