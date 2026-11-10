@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { addTasks, getState, newTask, refresh, respondTasks, setTaskStatus, toast, updateTask, useStore } from '../lib/store'
 import { setUI, useUI } from '../lib/ui'
-import { ymd, addDays, deadlineOf, greeting, hebDate, isOverdue, minutes, nowHM, taskMeta, today, weekStart, WORLD_LABEL } from '../lib/dates'
+import { DAY_NAMES, ymd, addDays, deadlineOf, greeting, hebDate, isOverdue, minutes, nowHM, taskMeta, today, weekStart, WORLD_LABEL } from '../lib/dates'
 import type { Task, World } from '../lib/types'
 import TaskRow from '../components/TaskRow'
 import ExtractSheet from '../components/ExtractSheet'
@@ -95,10 +95,21 @@ export default function Home() {
 
   return (
     <div className="page">
-      <div className="between">
-        <span className="pill-tag">{hebDate(t).replace('יום ', '')}</span>
+      <div className="between" style={{ alignItems: 'flex-start' }}>
+        <div className="col" style={{ gap: 2 }}>
+          <span className="small" style={{ color: 'var(--accent)', fontWeight: 600, letterSpacing: 0.3 }}>יום {DAY_NAMES[new Date().getDay()]}</span>
+          <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.3 }}>{hebDate(t, false)}</span>
+          <span className="small muted">{hebrewDate()}</span>
+        </div>
         <button className="avatar" aria-label="תפריט" onClick={() => setMenu(true)}>{profile.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initial}</button>
       </div>
+
+      {worlds.length > 1 && (
+        <div className="seg" role="tablist" aria-label="מעבר בין עולמות">
+          <button className={wf === 'all' ? 'on' : ''} onClick={() => setUI({ worldFilter: 'all' })}>הכל</button>
+          {worlds.map((w) => <button key={w} className={wf === w ? 'on' : ''} onClick={() => setUI({ worldFilter: w })}><span className={'dot ' + w} style={{ marginInlineEnd: 6 }} />{WORLD_LABEL[w]}</button>)}
+        </div>
+      )}
 
       <h1 className="hero"><span className="light">{greeting()}</span>{openCount === 0 ? 'אין כלום על הפרק.' : openCount === 1 ? 'דבר אחד על הפרק.' : `${openCount} דברים על הפרק.`}</h1>
 
@@ -109,17 +120,17 @@ export default function Home() {
         <div className="banner"><Icon name="bell" size={18} /><span className="grow">להתראות: שיתוף ← "הוסף למסך הבית", ופתח משם</span></div>
       )}
 
-      <div className="row">
-        <form className="grow" onSubmit={(e) => { e.preventDefault(); quickAdd() }}>
-          <label className="row" style={{ height: 48, padding: '0 6px 0 14px', borderRadius: 24, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-            <Icon name="plus" size={18} style={{ color: 'var(--dim)' }} />
-            <input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="הוסף משימה..." aria-label="הוסף משימה" style={{ border: 'none', background: 'transparent', padding: '0 4px', height: 46 }} />
-            {quick && <button type="submit" className="btn sm primary">הוסף</button>}
-          </label>
+      <div className="shell"><div className="core" style={{ padding: 8, gap: 8 }}>
+        <form className="row" style={{ gap: 6 }} onSubmit={(e) => { e.preventDefault(); quickAdd() }}>
+          <Icon name="plus" size={20} style={{ color: 'var(--accent)', marginInlineStart: 8, flexShrink: 0 }} />
+          <input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="כתוב משימה חדשה..." aria-label="כתוב משימה חדשה" style={{ border: 'none', background: 'transparent', padding: '0 4px', height: 44, fontSize: 16 }} />
+          {quick ? <button type="submit" className="btn sm primary">הוסף</button> : null}
         </form>
-        <button className="icon-btn" aria-label="משימה מפורטת" onClick={() => setUI({ newTask: true })}><Icon name="list" size={20} /></button>
-        {profile.ai_enabled && <button className="icon-btn" aria-label="גזור משימות מתמונה או טקסט" style={{ color: 'var(--accent)' }} onClick={() => setExtractOpen(true)}><Icon name="camera" size={20} /></button>}
-      </div>
+        <div className="row" style={{ gap: 6 }}>
+          <button className="btn sm chip grow" onClick={() => setUI({ newTask: true })}><Icon name="list" size={16} />משימה מפורטת</button>
+          {profile.ai_enabled && <button className="btn sm chip grow" onClick={() => setExtractOpen(true)}><Icon name="camera" size={16} />מתמונה או טקסט</button>}
+        </div>
+      </div></div>
 
       {(pendingTasks.length > 0 || hhInvite) && (
         <div className="shell"><div className="core" style={{ gap: 10 }}>
@@ -177,12 +188,6 @@ export default function Home() {
         )}
       </div>
 
-      {worlds.length > 1 && (
-        <div className="seg" role="tablist">
-          <button className={wf === 'all' ? 'on' : ''} onClick={() => setUI({ worldFilter: 'all' })}>הכל</button>
-          {worlds.map((w) => <button key={w} className={wf === w ? 'on' : ''} onClick={() => setUI({ worldFilter: w })}>{WORLD_LABEL[w]}</button>)}
-        </div>
-      )}
       {shopWorld && <Link to={`/shopping/${shopWorld}`} className="btn chip" style={{ textDecoration: 'none', color: 'var(--text)' }}><Icon name="cart" size={18} />רשימת קניות</Link>}
       {wf === 'all' && profile.shopping_worlds.length > 0 && worlds.length === 1 && <Link to={`/shopping/${profile.shopping_worlds[0]}`} className="btn chip" style={{ textDecoration: 'none', color: 'var(--text)' }}><Icon name="cart" size={18} />רשימת קניות</Link>}
 
@@ -218,6 +223,10 @@ export default function Home() {
       {menu && <Menu onClose={() => setMenu(false)} nav={nav} />}
     </div>
   )
+}
+
+function hebrewDate() {
+  try { return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()) } catch { return '' }
 }
 
 function fmtIn(m: number) { if (m < 60) return `${m} דק׳`; if (m < 120) return m % 60 >= 10 ? `שעה ו-${m % 60} דק׳` : 'שעה'; return `${Math.round(m / 60)} שעות` }
