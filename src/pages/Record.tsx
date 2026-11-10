@@ -3,125 +3,78 @@ import { useNavigate } from 'react-router-dom'
 import { set } from 'idb-keyval'
 import { extract } from '../lib/ai'
 import { setUI } from '../lib/ui'
-import { toast, useStore } from '../lib/store'
+import { toast } from '../lib/store'
+import { MAX_SEC, startRecording, type Rec } from '../lib/recorder'
 
-const MAX = 180
 const BARS = 23
 
-function pickMime() {
-  const c = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
-  for (const m of c) if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m
-  return ''
+export async function processAudio(blob: Blob, nav: (to: string, o?: { replace?: boolean }) => void) {
+  if (!navigator.onLine) { await set('pendingAudio', blob); toast('אין חיבור. ההקלטה נשמרה ותיגזר כשהחיבור יחזור.'); nav('/'); return }
+  try {
+    const res = await extract({ audio: blob })
+    setUI({ extraction: res })
+    nav('/review', { replace: true })
+  } catch (e) {
+    await set('pendingAudio', blob)
+    toast((e as Error).message)
+    nav('/')
+  }
 }
 
 export default function Record() {
   const nav = useNavigate()
-  const mode = useStore((s) => s.profile?.record_mode ?? 'toggle')
-  const [phase, setPhase] = useState<'idle' | 'rec' | 'busy'>('idle')
+  const [phase, setPhase] = useState<'starting' | 'rec' | 'busy'>('starting')
   const [sec, setSec] = useState(0)
   const [levels, setLevels] = useState<number[]>(Array(BARS).fill(4))
-  const rec = useRef<MediaRecorder | null>(null)
-  const chunks = useRef<Blob[]>([])
-  const stream = useRef<MediaStream | null>(null)
-  const raf = useRef(0)
-  const timer = useRef(0)
-  const cancelled = useRef(false)
-  const startedAt = useRef(0)
-
-  const cleanup = () => {
-    cancelAnimationFrame(raf.current); clearInterval(timer.current)
-    stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null
-  }
-
-  const start = async () => {
-    cancelled.current = false
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-      stream.current = s
-      const mime = pickMime()
-      const r = new MediaRecorder(s, mime ? { mimeType: mime } : undefined)
-      chunks.current = []
-      r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data) }
-      r.onstop = onStop
-      r.start(500)
-      rec.current = r
-      startedAt.current = Date.now()
-      setPhase('rec'); setSec(0)
-      timer.current = window.setInterval(() => {
-        const s2 = Math.floor((Date.now() - startedAt.current) / 1000)
-        setSec(s2)
-        if (s2 >= MAX) stop()
-      }, 250)
-      try {
-        const ctx = new AudioContext()
-        const src = ctx.createMediaStreamSource(s)
-        const an = ctx.createAnalyser(); an.fftSize = 64
-        src.connect(an)
-        const data = new Uint8Array(an.frequencyBinCount)
-        const loop = () => {
-          an.getByteFrequencyData(data)
-          const avg = data.reduce((a, b) => a + b, 0) / data.length
-          setLevels((l) => [...l.slice(1), Math.max(4, Math.min(70, avg * 0.9))])
-          raf.current = requestAnimationFrame(loop)
-        }
-        loop()
-      } catch { /* no analyser */ }
-    } catch {
-      toast('אין גישה למיקרופון. אשר בהגדרות הטלפון.')
-      nav('/')
-    }
-  }
-
-  const stop = () => { if (rec.current && rec.current.state !== 'inactive') rec.current.stop() }
-
-  async function onStop() {
-    cleanup()
-    if (cancelled.current) return
-    const blob = new Blob(chunks.current, { type: rec.current?.mimeType || 'audio/mp4' })
-    if (blob.size < 2000) { toast('ההקלטה קצרה מדי'); nav('/'); return }
-    if (!navigator.onLine) {
-      await set('pendingAudio', blob)
-      toast('אין חיבור. ההקלטה נשמרה ותיגזר כשהחיבור יחזור.')
-      nav('/'); return
-    }
-    setPhase('busy')
-    try {
-      const res = await extract({ audio: blob })
-      setUI({ extraction: res })
-      nav('/review', { replace: true })
-    } catch (e) {
-      await set('pendingAudio', blob)
-      toast((e as Error).message + ' ההקלטה נשמרה.')
-      nav('/')
-    }
-  }
+  const rec = useRef<Rec | null>(null)
+  const alive = useRef(true)
 
   useEffect(() => {
-    if (mode === 'toggle') start()
-    return () => { cancelled.current = true; try { rec.current?.stop() } catch { /* */ } cleanup() }
+    alive.current = true
+    let timer = 0
+    startRecording().then((r) => {
+      if (!alive.current) { r.cancel(); return }
+      rec.current = r
+      setPhase('rec')
+      r.onLevel((v) => setLevels((l) => [...l.slice(1), Math.max(4, Math.min(70, v * 0.9))]))
+      timer = window.setInterval(() => {
+        const s = Math.floor((Date.now() - r.startedAt) / 1000)
+        setSec(s)
+        if (s >= MAX_SEC) finish()
+      }, 250)
+    }).catch(() => { toast('אין גישה למיקרופון. אשר בהגדרות הטלפון.'); nav('/') })
+    return () => { alive.current = false; clearInterval(timer); rec.current?.cancel() }
   }, []) // eslint-disable-line
 
-  const left = MAX - sec
+  const finish = async () => {
+    const r = rec.current; if (!r) return
+    rec.current = null
+    setPhase('busy')
+    const blob = await r.stop()
+    if (!blob) { toast('ההקלטה קצרה מדי'); nav('/'); return }
+    await processAudio(blob, nav)
+  }
+
+  const left = MAX_SEC - sec
   const mm = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 
   return (
     <div className="page" style={{ minHeight: '100dvh', paddingBottom: 'calc(env(safe-area-inset-bottom) + 36px)' }}>
       <div className="between">
-        <button className="btn" onClick={() => { cancelled.current = true; stop(); cleanup(); nav('/') }}>ביטול</button>
-        {phase === 'rec' && <span className="pill-tag"><span className="dot" style={{ background: 'var(--danger)' }} />מקליט</span>}
+        <button className="btn" onClick={() => { rec.current?.cancel(); rec.current = null; nav('/') }} disabled={phase === 'busy'}>ביטול</button>
+        {phase === 'rec' && <span className="pill-tag"><span className="dot rec-dot" style={{ background: 'var(--danger)' }} />מקליט</span>}
       </div>
 
-      <div className="col grow" style={{ justifyContent: 'center', gap: 28, flex: 1 }}>
+      <div className="col" style={{ justifyContent: 'center', gap: 28, flex: 1 }}>
         {phase === 'busy' ? (
-          <div className="col" style={{ alignItems: 'center', gap: 16 }}>
+          <div className="col fade-in" style={{ alignItems: 'center', gap: 16 }}>
             <div className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
             <div style={{ fontSize: 18, fontWeight: 500 }}>גוזר את המשימות...</div>
-            <div className="muted small">זה לוקח כמה שניות</div>
           </div>
         ) : (
           <>
             <div className="col" style={{ alignItems: 'center', gap: 6 }}>
-              <div className="small" style={{ color: 'var(--accent)' }}>{phase === 'rec' ? 'אני מקשיב' : mode === 'hold' ? 'החזק את הכפתור ודבר' : 'מתכונן...'}</div>
+              <div className="small" style={{ color: 'var(--accent)' }}>{phase === 'rec' ? 'אני מקשיב' : 'מתחיל...'}</div>
               <div className="timer">{mm}</div>
               <div className="small" style={{ color: left <= 30 && phase === 'rec' ? 'var(--danger)' : 'var(--dim)' }}>{left <= 30 && phase === 'rec' ? `נשארו ${left} שניות` : 'מתוך 3:00'}</div>
             </div>
@@ -136,16 +89,8 @@ export default function Record() {
 
       {phase !== 'busy' && (
         <div className="col" style={{ alignItems: 'center', gap: 12 }}>
-          {mode === 'hold' ? (
-            <button className="stop" aria-label="החזק להקלטה" style={{ touchAction: 'none' }}
-              onPointerDown={(e) => { e.preventDefault(); if (phase === 'idle') start() }}
-              onPointerUp={() => stop()} onPointerLeave={() => phase === 'rec' && stop()} onContextMenu={(e) => e.preventDefault()}>
-              <span style={{ borderRadius: phase === 'rec' ? 6 : 12 }} />
-            </button>
-          ) : (
-            <button className="stop" aria-label="סיים הקלטה" onClick={stop} disabled={phase !== 'rec'}><span /></button>
-          )}
-          <div className="small muted">{mode === 'hold' ? 'שחרר לסיום' : 'לחיצה לסיום'} · אגזור את המשימות בשבילך</div>
+          <button className="stop" aria-label="סיים הקלטה" onClick={finish} disabled={phase !== 'rec'}><span /></button>
+          <div className="small muted">לחיצה לסיום · אגזור את המשימות בשבילך</div>
         </div>
       )}
     </div>

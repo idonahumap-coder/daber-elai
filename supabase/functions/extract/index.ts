@@ -76,7 +76,7 @@ function prompt(ctx: Record<string, unknown>, mode: string) {
 }
 
 async function callGemini(key: string, parts: unknown[]) {
-  const models = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash']
+  const models = ['gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-flash-latest']
   let lastErr = ''
   for (const m of models) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
@@ -84,9 +84,8 @@ async function callGemini(key: string, parts: unknown[]) {
       body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 } })
     })
     if (r.ok) return { data: await r.json(), model: m }
-    lastErr = `${m}: ${r.status} ${(await r.text()).slice(0, 300)}`
+    lastErr += ` | ${m}: ${r.status} ${(await r.text()).slice(0, 200)}`
     if (r.status === 400 && lastErr.includes('API key')) break
-    if (r.status === 429) break
   }
   throw new Error(lastErr)
 }
@@ -128,12 +127,12 @@ Deno.serve(async (req) => {
       await admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: false })
       const msg = String((e as Error).message)
       console.error(msg)
-      if (msg.includes('429')) return json({ error: 'ה-AI עמוס כרגע. נסה שוב בעוד דקה.' }, 429)
+      if (msg.includes('429') || msg.includes('503')) return json({ error: 'ה-AI עמוס כרגע. נסה שוב בעוד דקה.' }, 429)
       if (msg.includes('API key')) return json({ error: 'מפתח ה-AI לא תקין' }, 500)
       return json({ error: 'הגזירה נכשלה. נסה שוב.' }, 500)
     }
     const d = result.data
-    const text = d?.candidates?.[0]?.content?.parts?.map((x: { text?: string }) => x.text || '').join('') || '{}'
+    const text = d?.candidates?.[0]?.content?.parts?.filter((x: { thought?: boolean }) => !x.thought).map((x: { text?: string }) => x.text || '').join('') || '{}'
     let parsed: { transcript?: string; items?: unknown[] } = {}
     try { parsed = JSON.parse(text) } catch { parsed = { transcript: '', items: [] } }
     const u = d?.usageMetadata || {}

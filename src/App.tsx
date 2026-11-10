@@ -35,7 +35,8 @@ function Shell() {
   const showNav = !['/record', '/review'].includes(loc.pathname)
   return (
     <div className="app">
-      <Routes>
+      <div key={loc.pathname} className="route">
+      <Routes location={loc}>
         <Route path="/" element={<Home />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/record" element={<Record />} />
@@ -51,6 +52,7 @@ function Shell() {
         <Route path="/shopping/:world" element={<Shopping />} />
         <Route path="*" element={<Home />} />
       </Routes>
+      </div>
       {showNav && <Nav />}
       <TaskSheet />
     </div>

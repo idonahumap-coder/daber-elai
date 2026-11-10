@@ -206,3 +206,28 @@ h2.title { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.4px;
 .splash-bar { width: 64px; height: 4px; border-radius: 2px; background: var(--seg-off); overflow: hidden; }
 .splash-bar span { display: block; width: 40%; height: 100%; border-radius: 2px; background: var(--accent); animation: load 1.2s cubic-bezier(.32,.72,0,1) infinite; }
 @keyframes load { from { transform: translateX(150%) } to { transform: translateX(-250%) } }
+
+/* inputs: keep native date/time inside their boxes (iOS) */
+input[type='date'], input[type='time'], input[type='datetime-local'] { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; display: block; min-height: 48px; text-align: right; line-height: 1.2; }
+input::-webkit-date-and-time-value { text-align: right; }
+.grid2 > *, .grid3 > *, .row > * { min-width: 0; }
+
+/* smooth transitions */
+.route { animation: routeIn .32s cubic-bezier(.32,.72,0,1); }
+@keyframes routeIn { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+.fade-in { animation: fade .25s ease-out; }
+.btn, .chip, .icon-btn, .seg button, .task, .option, .cal-day { transition: transform .18s cubic-bezier(.32,.72,0,1), background-color .2s, color .2s, border-color .2s, opacity .2s; }
+.chip:active, .icon-btn:active, .option:active, .cal-day:active, .seg button:active { transform: scale(0.96); }
+.task.done .t-title { transition: color .3s; }
+.check { transition: background-color .2s, border-color .2s, transform .2s cubic-bezier(.32,.72,0,1); }
+.check:active { transform: scale(0.85); }
+.sheet { animation-duration: .38s; }
+.toast { animation: toastIn .3s cubic-bezier(.32,.72,0,1); }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 12px) } to { opacity: 1; transform: translate(-50%, 0) } }
+
+/* recording */
+.hold-overlay { position: fixed; inset: 0; z-index: 15; background: var(--bg); display: flex; align-items: center; justify-content: center; pointer-events: none; animation: fade .2s ease-out; }
+.nav .rec.recording { animation: recPulse 1.2s ease-in-out infinite; }
+@keyframes recPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft) } 50% { box-shadow: 0 0 0 14px var(--accent-soft) } }
+.rec-dot { animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .3 } }
