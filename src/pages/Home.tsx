@@ -126,7 +126,7 @@ export default function Home() {
 
       <div className="between" style={{ alignItems: 'flex-end' }}>
         <div className="col" style={{ gap: 0 }}>
-          <span className="muted" style={{ fontSize: 15, fontWeight: 300 }}>{greeting()}</span>
+          <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--accent)' }}>{greeting().replace(/\.$/, '')}{profile.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''}.</span>
           <span style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.4 }}>{openCount === 0 ? 'אין כלום על הפרק.' : openCount === 1 ? 'דבר אחד על הפרק.' : `${openCount} דברים על הפרק.`}</span>
         </div>
         <div className="col" style={{ alignItems: 'flex-end', gap: 6, minWidth: 74 }}>

@@ -51,16 +51,6 @@ document.addEventListener('click', (e) => {
   setTimeout(() => { closing = true; ov.click(); closing = false; restore(el, ov) }, 250)
 }, true)
 
-/* iOS sometimes ends the web-app viewport above the real screen bottom: measure and compensate */
-function fitViewport() {
-  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone
-  const portrait = innerHeight > innerWidth
-  const gap = standalone && portrait ? screen.height - innerHeight : 0
-  document.documentElement.style.setProperty('--vp-gap', (gap > 0 && gap < 160 ? gap : 0) + 'px')
-}
-fitViewport()
-addEventListener('resize', fitViewport)
-
 /* If the sheet refused to close (e.g. busy), bring it back */
 function restore(el: HTMLElement, ov: HTMLElement | null) {
   setTimeout(() => {

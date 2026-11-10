@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { getState, flush, loadCache, loadOutbox, refresh, setState, subscribeRealtime, unsubscribeRealtime, useStore } from './lib/store'
@@ -21,7 +21,6 @@ import Shopping from './pages/Shopping'
 import Nav from './components/Nav'
 import TaskSheet from './components/TaskSheet'
 import Toast from './components/Toast'
-import { Splash } from './components/Logo'
 
 function applyTheme(theme: string | undefined) {
   const t = theme === 'light' || theme === 'dark' ? theme : window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
@@ -33,7 +32,7 @@ function applyTheme(theme: string | undefined) {
 function Shell() {
   const loc = useLocation()
   const showNav = !['/record', '/review'].includes(loc.pathname)
-  useEffect(() => { document.querySelector('.app')?.scrollTo(0, 0) }, [loc.pathname])
+  useEffect(() => { window.scrollTo(0, 0) }, [loc.pathname])
   return (
     <div className="app">
       <div key={loc.pathname} className="route">
@@ -66,9 +65,13 @@ export default function App() {
   const online = useStore((s) => s.online)
   const pendingOps = useStore((s) => s.pendingOps)
   const authChecked = useStore((s) => s.ready || s.session !== null)
-  const [minSplash, setMinSplash] = useState(true)
-  const splashDone = !minSplash && authChecked
-  useEffect(() => { const t = setTimeout(() => setMinSplash(false), Math.max(0, 1500 - performance.now())); return () => clearTimeout(t) }, [])
+  const appReady = authChecked && (!session || !!profile)
+  useEffect(() => {
+    const boot = document.getElementById('boot'); if (!boot) return
+    const hide = () => { boot.style.opacity = '0'; setTimeout(() => boot.remove(), 400) }
+    if (appReady) { const t = setTimeout(hide, Math.max(0, 1500 - performance.now())); return () => clearTimeout(t) }
+    const t = setTimeout(hide, 6000); return () => clearTimeout(t)
+  }, [appReady])
 
   useEffect(() => {
     applyTheme(undefined)
@@ -101,9 +104,10 @@ export default function App() {
   useEffect(() => { applyTheme(profile?.theme) }, [profile?.theme])
 
   let body
-  if (!authChecked || minSplash) body = <Splash />
+  const skeleton = <div className="page"><div className="skeleton" style={{ height: 40, width: 160 }} /><div className="skeleton" style={{ height: 70 }} /><div className="skeleton" style={{ height: 220 }} /></div>
+  if (!authChecked) body = skeleton
   else if (!session) body = <Login />
-  else if (!profile) body = splashDone ? null : <Splash />
+  else if (!profile) body = skeleton
   else if (profile.status !== 'approved') body = <Pending />
   else if (!profile.onboarded) body = <Onboarding />
   else body = <HashRouter><Shell /></HashRouter>
