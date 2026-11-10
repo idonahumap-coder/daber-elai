@@ -8,7 +8,7 @@ import { WORLD_LABEL } from '../lib/dates'
 import type { World } from '../lib/types'
 import { Icon } from '../components/Icon'
 
-const NOTIFS: [string, string][] = [['morning', 'התראת בוקר'], ['reminder', 'תזכורת לפני משימה'], ['overdue', 'משימה שחרגה מהזמן'], ['evening', 'סיכום ערב'], ['weekly', 'סיכום שבועי'], ['monthly', 'סיכום חודשי'], ['share', 'שיתופים ומשימות משותפות'], ['idea', 'תזכורות לרעיונות']]
+const NOTIFS: [string, string][] = [['morning', 'התראת בוקר'], ['reminder', 'תזכורת לפני משימה'], ['evening', 'סיכום ערב'], ['weekly', 'סיכום שבועי'], ['monthly', 'סיכום חודשי'], ['share', 'שיתופים ומשימות משותפות'], ['idea', 'תזכורות לרעיונות']]
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return <button className={'toggle' + (on ? ' on' : '')} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />
