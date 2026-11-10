@@ -196,3 +196,9 @@ h2.title { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.4px;
 .menu-item { display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: right; font-size: 15px; }
 .badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* home: fits one screen, list scrolls inside */
+.homepage { height: 100dvh; display: flex; flex-direction: column; gap: 12px; padding: calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 96px); overflow: hidden; }
+.homepage > * { flex-shrink: 0; }
+.homepage .home-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px 8px; display: flex; flex-direction: column; gap: 12px; }
+@media (max-height: 700px) { .homepage { gap: 8px } .homepage .seg button { height: 32px } }
