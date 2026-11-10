@@ -40,10 +40,19 @@ export async function startRecording(): Promise<Rec> {
     cancel: () => { clearTimeout(timer); try { r.onstop = null; r.stop() } catch { /* */ } cleanup() },
     stop: () => new Promise((resolve) => {
       clearTimeout(timer)
-      const done = () => { cleanup(); const b = new Blob(chunks, { type: r.mimeType || mime || 'audio/mp4' }); resolve(b.size > 1500 ? b : null) }
+      let finished = false
+      const done = () => {
+        if (finished) return
+        finished = true
+        cleanup()
+        const b = new Blob(chunks, { type: (r.mimeType || mime || 'audio/mp4').split(';')[0] })
+        resolve(b.size > 1500 ? b : null)
+      }
       if (r.state === 'inactive') return done()
-      r.onstop = done
-      r.stop()
+      r.onstop = () => setTimeout(done, 50)
+      try { r.requestData() } catch { /* */ }
+      try { r.stop() } catch { done() }
+      setTimeout(done, 1500) // iOS sometimes never fires "stop"
     })
   }
 }

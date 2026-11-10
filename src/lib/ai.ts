@@ -31,7 +31,13 @@ export async function extract(input: { audio?: Blob; image?: Blob; text?: string
   if (input.audio) { body.audio = await blobToBase64(input.audio); body.mime = input.audio.type || 'audio/mp4' }
   if (input.image) { body.image = await blobToBase64(input.image); body.mime = input.image.type || 'image/jpeg' }
   if (input.text) body.text = input.text
-  const { data, error } = await supabase.functions.invoke('extract', { body })
+  const ctrl = new AbortController()
+  const to = setTimeout(() => ctrl.abort(), 45000)
+  let data, error
+  try {
+    ({ data, error } = await supabase.functions.invoke('extract', { body, signal: ctrl.signal } as never))
+  } catch { error = null; throw new Error('הגזירה לקחה יותר מדי זמן. ההקלטה נשמרה, נסה שוב.') } finally { clearTimeout(to) }
+  if (ctrl.signal.aborted) throw new Error('הגזירה לקחה יותר מדי זמן. ההקלטה נשמרה, נסה שוב.')
   if (error) {
     let msg = 'הגזירה נכשלה. נסה שוב.'
     try { const j = await (error as { context?: Response }).context?.json(); if (j?.error) msg = j.error } catch { /* */ }

@@ -11,3 +11,9 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 )
+
+if ('serviceWorker' in navigator) {
+  let reloaded = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload() } })
+  setInterval(() => navigator.serviceWorker.getRegistration().then((r) => r?.update()), 60000)
+}

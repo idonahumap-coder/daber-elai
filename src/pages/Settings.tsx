@@ -81,7 +81,7 @@ export default function Settings() {
       <div className="section-label">AI</div>
       <div className="card small muted">{!q ? '...' : !q.enabled ? 'הקלטה וגזירה עם AI לא הופעלו לחשבון שלך. אפשר לבקש מהמנהל.' : q.lim >= 9999 ? 'ללא הגבלה' : `נוצלו ${q.used} מתוך ${q.lim} גזירות היום`}</div>
 
-      <div className="section-label">חשבון</div>
+      <div className="section-label">חשבון · גרסה {__BUILD__}</div>
       <div className="card col">
         <button className="btn" onClick={() => supabase.auth.signOut()}><Icon name="logout" size={18} />יציאה</button>
         {!p.is_admin && (p.delete_requested

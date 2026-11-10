@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { getState, flush, loadCache, loadOutbox, refresh, setState, subscribeRealtime, unsubscribeRealtime, useStore } from './lib/store'
@@ -65,6 +65,8 @@ export default function App() {
   const online = useStore((s) => s.online)
   const pendingOps = useStore((s) => s.pendingOps)
   const authChecked = useStore((s) => s.ready || s.session !== null)
+  const [minSplash, setMinSplash] = useState(true)
+  useEffect(() => { const t = setTimeout(() => setMinSplash(false), 900); return () => clearTimeout(t) }, [])
 
   useEffect(() => {
     applyTheme(undefined)
@@ -97,7 +99,7 @@ export default function App() {
   useEffect(() => { applyTheme(profile?.theme) }, [profile?.theme])
 
   let body
-  if (!authChecked) body = <Splash />
+  if (!authChecked || minSplash) body = <Splash />
   else if (!session) body = <Login />
   else if (!profile) body = <Splash />
   else if (profile.status !== 'approved') body = <Pending />
