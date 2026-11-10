@@ -25,6 +25,9 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator) {
   let reloaded = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload() } })
-  setInterval(() => navigator.serviceWorker.getRegistration().then((r) => r?.update()), 60000)
+  let pending = false
+  const doReload = () => { if (!reloaded) { reloaded = true; location.reload() } }
+  navigator.serviceWorker.addEventListener('controllerchange', () => { pending = true; if (document.visibilityState === 'hidden') doReload() })
+  document.addEventListener('visibilitychange', () => { if (pending && document.visibilityState === 'hidden') doReload() })
+  setInterval(() => navigator.serviceWorker.getRegistration().then((r) => r?.update()), 10 * 60000)
 }

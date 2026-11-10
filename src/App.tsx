@@ -67,7 +67,8 @@ export default function App() {
   const pendingOps = useStore((s) => s.pendingOps)
   const authChecked = useStore((s) => s.ready || s.session !== null)
   const [minSplash, setMinSplash] = useState(true)
-  useEffect(() => { const t = setTimeout(() => setMinSplash(false), 450); return () => clearTimeout(t) }, [])
+  const splashDone = !minSplash && authChecked
+  useEffect(() => { const t = setTimeout(() => setMinSplash(false), Math.max(0, 1500 - performance.now())); return () => clearTimeout(t) }, [])
 
   useEffect(() => {
     applyTheme(undefined)
@@ -102,7 +103,7 @@ export default function App() {
   let body
   if (!authChecked || minSplash) body = <Splash />
   else if (!session) body = <Login />
-  else if (!profile) body = <Splash />
+  else if (!profile) body = splashDone ? null : <Splash />
   else if (profile.status !== 'approved') body = <Pending />
   else if (!profile.onboarded) body = <Onboarding />
   else body = <HashRouter><Shell /></HashRouter>

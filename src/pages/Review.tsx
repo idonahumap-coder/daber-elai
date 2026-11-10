@@ -83,6 +83,7 @@ export default function Review() {
 
   const approve = async () => {
     setBusy(true)
+    const done = new Set<string>()
     try {
       const tasks = []
       for (const x of items) {
@@ -91,7 +92,7 @@ export default function Review() {
           if (x.category) category_id = (await addCategory(x.category)).id
           await addIdea({ title: x.title, category_id })
         } else if (x.zone === 'shop-home' || x.zone === 'shop-personal') {
-          await addShop(x.title, x.qty || null, x.zone === 'shop-home')
+          await addShop(x.title.replace(/^(לקנות|לקנות:)\s*/, ''), x.qty || null, x.zone === 'shop-home')
         } else if (x.recurrence) {
           await addSeries({ world: x.zone, title: x.title, notes: null, priority: x.priority ?? 1, due_time: x.time || null, reminder_min: x.time ? profile.default_reminder_min : null, rule: { ...x.recurrence, start: x.recurrence.start || today() } })
         } else {
@@ -99,12 +100,13 @@ export default function Review() {
           const date = x.date || today()
           tasks.push(newTask({ title: x.title, world: x.zone, kind, due_date: kind === 'week' ? weekFriday(date) : date, due_time: kind === 'timed' ? x.time || null : null, priority: x.priority ?? 1, reminder_min: kind === 'timed' ? (minsUntil(date, x.time) < profile.default_reminder_min + 2 ? 0 : profile.default_reminder_min) : null, source: 'ai' }))
         }
+        if (x.zone === 'idea' || x.zone.startsWith('shop') || x.recurrence) done.add(x._id)
       }
       if (tasks.length) await addTasks(tasks)
-      toast(`נשמרו ${items.length} פריטים`)
+      toast(items.length === 1 ? 'נשמר' : `נשמרו ${items.length} פריטים`)
       setUI({ extraction: null })
       nav('/', { replace: true })
-    } finally { setBusy(false) }
+    } catch { setItems((l) => l.filter((x) => !done.has(x._id))) } finally { setBusy(false) }
   }
 
   const dragging = drag ? items.find((x) => x._id === drag.id) : null
