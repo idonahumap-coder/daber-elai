@@ -31,13 +31,20 @@ Deno.serve(async (req) => {
         await sendTo(admin, b.user_id, { title: b.role === 'assignee' ? `${name} הטיל/ה עליך משימה` : `${name} שיתף/ה איתך משימה`, body: `${t.title} · לחץ לאישור`, url: './#/', tag: 'share-' + b.task_id })
       }
     } else if (b.type === 'done' && b.task_id) {
-      const { data: t } = await userClient.from('tasks').select('title,owner_id,assignee_id').eq('id', b.task_id).single()
+      const { data: t } = await userClient.from('tasks').select('title,owner_id,assignee_id,household_id').eq('id', b.task_id).single()
       if (t) {
         const { data: mem } = await admin.from('task_members').select('user_id').eq('task_id', b.task_id).eq('status', 'accepted')
         const ids = new Set<string>([t.owner_id, ...(mem || []).map((m: { user_id: string }) => m.user_id)])
         if (t.assignee_id) ids.add(t.assignee_id)
+        if (t.household_id) { const { data: hm } = await admin.from('household_members').select('user_id').eq('household_id', t.household_id).eq('status', 'accepted'); for (const m of hm || []) ids.add(m.user_id) }
         ids.delete(user.id)
         for (const id of ids) if (await prefOk(id, 'share')) await sendTo(admin, id, { title: `${name} סימן/ה בוצע`, body: t.title, url: './#/', tag: 'done-' + b.task_id })
+      }
+    } else if (b.type === 'new' && b.task_id) {
+      const { data: t } = await userClient.from('tasks').select('title,household_id').eq('id', b.task_id).single()
+      if (t?.household_id) {
+        const { data: hm } = await admin.from('household_members').select('user_id').eq('household_id', t.household_id).eq('status', 'accepted')
+        for (const m of hm || []) if (m.user_id !== user.id && await prefOk(m.user_id, 'share')) await sendTo(admin, m.user_id, { title: `${name} הוסיף/ה משימה לבית`, body: t.title, url: './#/', tag: 'new-' + b.task_id })
       }
     } else if (b.type === 'household' && b.user_id) {
       const { data: m } = await admin.from('household_members').select('invited_by').eq('user_id', b.user_id).eq('status', 'pending').single()

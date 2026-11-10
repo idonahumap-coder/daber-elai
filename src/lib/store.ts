@@ -184,6 +184,7 @@ export async function addTasks(list: Task[]) {
   list = list.map((t) => ({ ...t, household_id: t.world === 'home' && state.household ? state.household.id : null }))
   setState((s) => ({ tasks: [...s.tasks, ...list] }))
   for (const t of list) await run({ kind: 'upsert', table: 'tasks', row: taskRow(t) })
+  for (const t of list) if (t.household_id) pushEvent({ type: 'new', task_id: t.id })
 }
 
 export async function updateTask(id: string, patch: Partial<Task>) {

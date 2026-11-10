@@ -14,6 +14,20 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   return <button className={'toggle' + (on ? ' on' : '')} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />
 }
 
+/** crop to a square and shrink to 192px JPEG (stored inline, ~15KB) */
+function squareThumb(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const img = new Image()
+    img.onload = () => {
+      const n = Math.min(img.width, img.height), c = document.createElement('canvas'); c.width = c.height = 192
+      c.getContext('2d')!.drawImage(img, (img.width - n) / 2, (img.height - n) / 2, n, n, 0, 0, 192, 192)
+      URL.revokeObjectURL(img.src); res(c.toDataURL('image/jpeg', 0.82))
+    }
+    img.onerror = rej
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export default function Settings() {
   const p = useStore((s) => s.profile)!
   const nav = useNavigate()
@@ -35,6 +49,13 @@ export default function Settings() {
 
       <div className="section-label">פרופיל</div>
       <div className="card col">
+        <div className="row" style={{ gap: 14 }}>
+          <label className="avatar" style={{ width: 64, height: 64, borderRadius: '50%', fontSize: 24, cursor: 'pointer', flexShrink: 0 }}>
+            {p.avatar_url ? <img src={p.avatar_url} alt="" /> : (p.display_name || '?')[0]}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => { const f = e.target.files?.[0]; if (f) { saveProfile({ avatar_url: await squareThumb(f) }); toast('התמונה עודכנה') } }} />
+          </label>
+          <div className="small muted" style={{ lineHeight: 1.6 }}>לחץ על העיגול כדי להוסיף תמונה. בני הבית יראו אותה.</div>
+        </div>
         <div className="field"><label htmlFor="nm">שם</label><input id="nm" defaultValue={p.display_name || ''} onBlur={(e) => e.target.value.trim() && saveProfile({ display_name: e.target.value.trim() })} /></div>
         <div className="grid2">
           <div className="field"><label htmlFor="s1">תחילת יום</label><input id="s1" type="time" defaultValue={p.day_start.slice(0, 5)} onBlur={(e) => saveProfile({ day_start: e.target.value })} /></div>

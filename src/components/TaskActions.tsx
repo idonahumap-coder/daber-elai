@@ -49,7 +49,7 @@ export default function TaskActions() {
             </div>
           ) : (
             <div className="grid3">
-              <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'done'); close() }}><Icon name="check" size={18} stroke={2} />ביצעתי</button>
+              <button className="btn primary" onClick={() => { setTaskStatus(task.id, 'done', { notify: !!task.household_id }); close() }}><Icon name="check" size={18} stroke={2} />ביצעתי</button>
               <button className={'btn' + (post ? ' on' : '')} onClick={() => setPost((v) => !v)}>דחה</button>
               <button className="btn" style={{ color: 'var(--danger)' }} onClick={() => (task.series_id ? setAskSeries(true) : cancel())}>בטל</button>
             </div>
