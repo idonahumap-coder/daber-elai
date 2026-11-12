@@ -77,24 +77,54 @@ function prompt(ctx: Record<string, unknown>, mode: string) {
 10. אם לא נמצא כלום, החזר items ריק.`
 }
 
-async function callGemini(key: string, parts: unknown[]) {
+const busy = (e: string) => / 503 | 429 | 500 /.test(e)
+
+async function callGemini(key: string, parts: unknown[], rounds: number) {
   const models = ['gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-flash-latest']
   let lastErr = ''
-  // Free tier is sometimes "overloaded" (503) for a few seconds: go over the models up to 3 times with a short pause
-  for (let round = 0; round < 3; round++) {
-  if (round) await new Promise((r) => setTimeout(r, 1200 * round))
-  for (const m of models) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 } })
-    })
-    if (r.ok) return { data: await r.json(), model: m }
-    lastErr += ` | ${m}: ${r.status} ${(await r.text()).slice(0, 200)}`
-    if (r.status === 400 && lastErr.includes('API key')) throw new Error(lastErr)
-  }
-  if (!/ 503 | 429 | 500 /.test(lastErr)) break
+  for (let round = 0; round < rounds; round++) {
+    if (round) await new Promise((r) => setTimeout(r, 1200 * round))
+    for (const m of models) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 } })
+      })
+      if (r.ok) {
+        const d = await r.json()
+        const text = d?.candidates?.[0]?.content?.parts?.filter((x: { thought?: boolean }) => !x.thought).map((x: { text?: string }) => x.text || '').join('') || '{}'
+        const u = d?.usageMetadata || {}
+        return { text, model: m, inTok: u.promptTokenCount || 0, outTok: u.candidatesTokenCount || 0 }
+      }
+      lastErr += ` | ${m}: ${r.status} ${(await r.text()).slice(0, 200)}`
+      if (r.status === 400 && lastErr.includes('API key')) throw new Error(lastErr)
+    }
+    if (!busy(lastErr)) break
   }
   throw new Error(lastErr)
+}
+
+/** Backup provider (Groq): Whisper for speech, then an open model for the extraction. No image support. */
+async function callGroq(key: string, ctx: Record<string, unknown>, body: { audio?: string; mime?: string; text?: string }) {
+  const H = { Authorization: `Bearer ${key}` }
+  let said = String(body.text || '').slice(0, 8000)
+  if (body.audio) {
+    const mime = (body.mime || 'audio/mp4').split(';')[0]
+    const bytes = Uint8Array.from(atob(body.audio), (c) => c.charCodeAt(0))
+    const fd = new FormData()
+    fd.append('file', new Blob([bytes], { type: mime }), mime.includes('webm') ? 'a.webm' : mime.includes('ogg') ? 'a.ogg' : 'a.m4a')
+    fd.append('model', 'whisper-large-v3'); fd.append('language', 'he'); fd.append('response_format', 'json')
+    const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: H, body: fd })
+    if (!r.ok) throw new Error(` | groq-whisper: ${r.status} ${(await r.text()).slice(0, 200)}`)
+    said = String((await r.json()).text || '')
+  }
+  const sys = prompt(ctx, 'text') + `\n\nהחזר JSON בלבד, בלי טקסט נוסף, במבנה: {"transcript": string, "items": [{"type": "task"|"idea"|"shopping", "title": string, "world": "personal"|"home"|"work", "kind": "timed"|"day"|"week"|"deadline", "date": "YYYY-MM-DD"|null, "time": "HH:MM"|null, "priority": 0-3, "recurrence": {"type": "daily"|"weekdays"|"monthly"|"interval", "days": number[], "day": number, "every": number}|null, "qty": string|null, "category": string|null, "question": string|null}]}`
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'openai/gpt-oss-120b', temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: 'הטקסט מהמשתמש:\n' + said }] })
+  })
+  if (!r.ok) throw new Error(` | groq-llm: ${r.status} ${(await r.text()).slice(0, 200)}`)
+  const d = await r.json()
+  return { text: d?.choices?.[0]?.message?.content || '{}', said, model: 'groq', inTok: d?.usage?.prompt_tokens || 0, outTok: d?.usage?.completion_tokens || 0 }
 }
 
 // deno-lint-ignore no-explicit-any
@@ -132,23 +162,29 @@ Deno.serve(async (req) => {
     if (body.image) parts.push({ inline_data: { mime_type: body.mime || 'image/jpeg', data: body.image } })
     if (body.text) parts.push({ text: 'הטקסט מהמשתמש:\n' + String(body.text).slice(0, 8000) })
 
-    let result
-    try {
-      result = await callGemini(key, parts)
-    } catch (e) {
+    const groqKey = Deno.env.get('GROQ_API_KEY')
+    let result: { text: string; model: string; inTok: number; outTok: number; said?: string } | null = null
+    let errs = ''
+    try { result = await callGemini(key, parts, 1) } catch (e) { errs += String((e as Error).message) }
+    // Gemini overloaded: switch to the backup provider, then give Gemini two more tries
+    if (!result && busy(errs) && groqKey && mode !== 'image') {
+      try { result = await callGroq(groqKey, ctx, body) } catch (e) { errs += String((e as Error).message) }
+    }
+    if (!result && busy(errs)) {
+      await new Promise((r) => setTimeout(r, 1200))
+      try { result = await callGemini(key, parts, 2) } catch (e) { errs += String((e as Error).message) }
+    }
+    if (!result) {
       await admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: false })
-      const msg = String((e as Error).message)
-      console.error(msg)
-      if (msg.includes('429') || msg.includes('503')) return json({ error: 'ה-AI עמוס כרגע. נסה שוב בעוד דקה.' }, 429)
-      if (msg.includes('API key')) return json({ error: 'מפתח ה-AI לא תקין' }, 500)
+      console.error(errs)
+      if (busy(errs)) return json({ error: 'ה-AI עמוס כרגע. נסה שוב בעוד דקה.' }, 429)
+      if (errs.includes('API key')) return json({ error: 'מפתח ה-AI לא תקין' }, 500)
       return json({ error: 'הגזירה נכשלה. נסה שוב.' }, 500)
     }
-    const d = result.data
-    const text = d?.candidates?.[0]?.content?.parts?.filter((x: { thought?: boolean }) => !x.thought).map((x: { text?: string }) => x.text || '').join('') || '{}'
     let parsed: { transcript?: string; items?: unknown[] } = {}
-    try { parsed = JSON.parse(text) } catch { parsed = { transcript: '', items: [] } }
-    const u = d?.usageMetadata || {}
-    bg(admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: true, input_tokens: u.promptTokenCount || 0, output_tokens: u.candidatesTokenCount || 0 }))
+    try { parsed = JSON.parse(result.text) } catch { parsed = { transcript: '', items: [] } }
+    if (result.said) parsed.transcript = result.said
+    bg(admin.from('ai_usage').insert({ user_id: user.id, kind: 'extract', ok: true, input_tokens: result.inTok, output_tokens: result.outTok }))
     return json({ transcript: parsed.transcript || '', items: parsed.items || [], model: result.model })
   } catch (e) {
     console.error(e)
