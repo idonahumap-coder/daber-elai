@@ -80,6 +80,9 @@ function prompt(ctx: Record<string, unknown>, mode: string) {
 async function callGemini(key: string, parts: unknown[]) {
   const models = ['gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-flash-latest']
   let lastErr = ''
+  // Free tier is sometimes "overloaded" (503) for a few seconds: go over the models up to 3 times with a short pause
+  for (let round = 0; round < 3; round++) {
+  if (round) await new Promise((r) => setTimeout(r, 1200 * round))
   for (const m of models) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -87,7 +90,9 @@ async function callGemini(key: string, parts: unknown[]) {
     })
     if (r.ok) return { data: await r.json(), model: m }
     lastErr += ` | ${m}: ${r.status} ${(await r.text()).slice(0, 200)}`
-    if (r.status === 400 && lastErr.includes('API key')) break
+    if (r.status === 400 && lastErr.includes('API key')) throw new Error(lastErr)
+  }
+  if (!/ 503 | 429 | 500 /.test(lastErr)) break
   }
   throw new Error(lastErr)
 }
